@@ -8,12 +8,16 @@ class LicenseRepository(private val dao: LicenseDao) {
 
     fun allLicenses(): Flow<List<LicenseEntry>> = dao.getAllLicenses()
 
+    suspend fun allLicensesOnce(): List<LicenseEntry> = dao.getAllLicensesOnce()
+
     fun licensesForVehicle(vehicleId: Long): Flow<List<LicenseEntry>> =
         dao.getLicensesForVehicle(vehicleId)
 
     suspend fun addVehicle(vehicle: Vehicle): Long = dao.insertVehicle(vehicle)
 
     suspend fun addLicense(entry: LicenseEntry): Long = dao.insertLicense(entry)
+
+    suspend fun updateVehicle(vehicle: Vehicle) = dao.updateVehicle(vehicle)
 
     suspend fun updateLicense(entry: LicenseEntry) = dao.updateLicense(entry)
 
@@ -25,4 +29,14 @@ class LicenseRepository(private val dao: LicenseDao) {
         dao.getLicensesDueForReminder(windowEndMillis)
 
     suspend fun licensesNeedingAlarm(): List<LicenseEntry> = dao.getLicensesNeedingAlarm()
+
+    suspend fun getVehicleById(vehicleId: Long): Vehicle? = dao.getVehicleById(vehicleId)
+
+    suspend fun unsyncedVehicles(): List<Vehicle> = dao.getUnsyncedVehicles()
+
+    suspend fun unsyncedLicenses(): List<LicenseEntry> = dao.getUnsyncedLicenses()
+
+    suspend fun getVehicleByRemoteId(remoteId: Long): Vehicle? = dao.getVehicleByRemoteId(remoteId)
+
+    suspend fun getLicenseByRemoteId(remoteId: Long): LicenseEntry? = dao.getLicenseByRemoteId(remoteId)
 }
