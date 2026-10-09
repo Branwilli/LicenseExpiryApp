@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Car silhouette -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,74 L24,62 L40,62 L48,46 L60,46 L68,62 L84,62 L84,74 Z" />
+
+    <!-- Wheels -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,76 A6,6 0 1,0 44,76 A6,6 0 1,0 32,76 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M64,76 A6,6 0 1,0 76,76 A6,6 0 1,0 64,76 Z" />
+
+    <!-- Expiry alert badge -->
+    <path
+        android:fillColor="#F4511E"
+        android:pathData="M60,32 A10,10 0 1,0 80,32 A10,10 0 1,0 60,32 Z" />
+
+    <!-- Exclamation mark inside the badge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68.5,25 H71.5 V33 H68.5 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68.5,36 A1.5,1.5 0 1,0 71.5,36 A1.5,1.5 0 1,0 68.5,36 Z" />
+</vector>
