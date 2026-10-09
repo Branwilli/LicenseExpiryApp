@@ -6,7 +6,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "vehicles")
 data class Vehicle(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val nickName: String,
+    val nickname: String,
     val plateNumber: String,
-    val ownerNotes: String? = null
+    val ownerNotes: String? = null,
+    val remoteId: Long? = null
 )
