@@ -37,6 +37,9 @@ interface LicenseDao {
     @Query("SELECT * FROM license_entries ORDER BY expiryDateMillis ASC")
     fun getAllLicenses(): Flow<List<LicenseEntry>>
 
+    @Query("SELECT * FROM license_entries ORDER BY expiryDateMillis ASC")
+    suspend fun getAllLicensesOnce(): List<LicenseEntry>
+
     // Used by the background worker to find licenses that need a reminder today.
     @Query(
         """
@@ -49,4 +52,21 @@ interface LicenseDao {
 
     @Query("SELECT * FROM license_entries WHERE alarmScheduled = 0")
     suspend fun getLicensesNeedingAlarm(): List<LicenseEntry>
+
+    // --- Sync support ---
+
+    @Query("SELECT * FROM vehicles WHERE id = :vehicleId")
+    suspend fun getVehicleById(vehicleId: Long): Vehicle?
+
+    @Query("SELECT * FROM vehicles WHERE remoteId IS NULL")
+    suspend fun getUnsyncedVehicles(): List<Vehicle>
+
+    @Query("SELECT * FROM license_entries WHERE remoteId IS NULL")
+    suspend fun getUnsyncedLicenses(): List<LicenseEntry>
+
+    @Query("SELECT * FROM vehicles WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getVehicleByRemoteId(remoteId: Long): Vehicle?
+
+    @Query("SELECT * FROM license_entries WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getLicenseByRemoteId(remoteId: Long): LicenseEntry?
 }
