@@ -1,23 +1,25 @@
-package com.example.licenseexpiry.data 
+package com.example.licenseexpiry.data
 
 import android.content.Context
-import androidx.room.AppDatabase
-import adroidx.room.Room
+import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 
-// Set's up the room and dictates the tables, schema version, and how to manage the room
+// setup a room database while defining the schema of the database
 @Database(
-    entities = [Vechile::class, LicenseEntry::class],
-    version = 1, // Should increase whenever there is a change in the database
+    entities = [Vehicle::class, LicenseEntry::class],
+    version = 2, // bumped: added remoteId to Vehicle and LicenseEntry
     exportSchema = false
 )
-// Serves as the blueprint 
-abstract class AppDatabase: RoomDatabase() {
-    abstract fun licenseDao(): LicenseDao // Provides a way for rest of app to access DAO
 
-    // Defines the functions and properties that belong to the class
+// Defines how the room builds and exposes the database
+abstract class AppDatabase : RoomDatabase() {
+
+    abstract fun licenseDao(): LicenseDao // Exposes and generate LicenseDao implementation to run queries
+
+    // Ensures only one AppDatabase exists in memory.
     companion object {
-        @Volatile 
+        @Volatile
         private var INSTANCE: AppDatabase? = null
 
         fun getInstance(context: Context): AppDatabase {
@@ -26,7 +28,12 @@ abstract class AppDatabase: RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "license_expiry_db"
-                ).build().also { INSTANCE = it }
+                )
+                    // TODO: write a real Migration(1, 2) before shipping with
+                    // existing users' data. Destructive is fine during
+                    // early development since there's no user data to lose yet.
+                    .fallbackToDestructiveMigration()
+                    .build().also { INSTANCE = it }
             }
         }
     }
