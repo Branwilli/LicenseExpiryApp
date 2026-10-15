@@ -11,8 +11,6 @@ class AppConfig(context: Context) {
 
     private val prefs = context.getSharedPreferences("license_expiry_config", Context.MODE_PRIVATE)
 
-    // TODO: replace this hardcoded default with a first-run setup step once
-    // you have a real deployed backend.
     var backendBaseUrl: String
         get() = prefs.getString(KEY_BACKEND_URL, "http://127.0.0.1:3000/") ?: ""
         set(value) = prefs.edit().putString(KEY_BACKEND_URL, value).apply()
@@ -30,6 +28,26 @@ class AppConfig(context: Context) {
         get() = prefs.getLong(KEY_USER_ID, -1L).takeIf { it != -1L }
         set(value) = prefs.edit().putLong(KEY_USER_ID, value ?: -1L).apply()
 
+    val wasRunningCleanly: Boolean
+        get() = prefs.getBoolean(KEY_WAS_RUNNING, false)
+
+    val lastActiveTime: Long
+        get() = prefs.getLong(KEY_LAST_ACTIVE_TIME, System.currentTimeMillis())
+
+    fun markAppStarted() {
+        prefs.edit()
+            .putBoolean(KEY_WAS_RUNNING, true)
+            .putLong(KEY_LAST_ACTIVE_TIME, System.currentTimeMillis())
+            .apply()
+    }
+
+    fun markAppStopped() {
+        prefs.edit()
+            .putBoolean(KEY_WAS_RUNNING, false)
+            .putLong(KEY_LAST_ACTIVE_TIME, System.currentTimeMillis())
+            .apply()
+    }
+
     val isLoggedIn: Boolean
         get() = authToken != null
 
@@ -39,6 +57,7 @@ class AppConfig(context: Context) {
             .remove(KEY_AUTH_TOKEN)
             .remove(KEY_USER_EMAIL)
             .remove(KEY_USER_ID)
+            .putBoolean(KEY_WAS_RUNNING, false)
             .apply()
     }
 
@@ -47,5 +66,7 @@ class AppConfig(context: Context) {
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_WAS_RUNNING = "was_running"
+        private const val KEY_LAST_ACTIVE_TIME = "last_active_time"
     }
 }
