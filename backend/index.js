@@ -5,6 +5,7 @@ const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const vehiclesRouter = require('./routes/vehicles');
 const licensesRouter = require('./routes/licenses');
+const fitnessRouter = require('./routes/fitness');
 const { router: notifyRouter } = require('./routes/notify');
 const { startDailyReminderJob } = require('./cron/dailyReminders');
 
@@ -21,6 +22,7 @@ app.use(requireAuth);
 app.use(usersRouter);
 app.use(vehiclesRouter);
 app.use(licensesRouter);
+app.use(fitnessRouter);
 app.use(notifyRouter);
 
 app.listen(PORT, () => {
