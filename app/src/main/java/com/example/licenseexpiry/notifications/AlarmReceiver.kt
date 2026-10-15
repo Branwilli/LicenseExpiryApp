@@ -9,6 +9,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val licenseId = intent.getLongExtra(EXTRA_LICENSE_ID, -1L)
         val vehicleNickname = intent.getStringExtra(EXTRA_VEHICLE_NAME) ?: "Your vehicle"
         val licenseType = intent.getStringExtra(EXTRA_LICENSE_TYPE) ?: "License"
+        val fitnessId = intent.getLongExtra(EXTRA_FITNESS_ID, -1L)
 
         NotificationHelper.createChannel(context)
         NotificationHelper.notify(
@@ -21,6 +22,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
         const val EXTRA_LICENSE_ID = "extra_license_id"
+        const val EXTRA_FITNESS_ID = "extra_fitness_id"
         const val EXTRA_VEHICLE_NAME = "extra_vehicle_name"
         const val EXTRA_LICENSE_TYPE = "extra_license_type"
     }
