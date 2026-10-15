@@ -1,6 +1,8 @@
 package com.example.licenseexpiry
 
 import android.app.Application
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.work.Constraints
@@ -21,8 +23,42 @@ class LicenseExpiryApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        checkSessionOnStartup()
         registerUserWithBackend()
         schedulePeriodicSync()
+        observeLifecycle()
+    }
+
+    private fun checkSessionOnStartup() {
+        val appConfig = AppConfig(this)
+        val now = System.currentTimeMillis()
+        val idleTimeout = 30 * 60 * 1000L // 30 minutes
+
+        // If app was terminated (wasRunningCleanly is false) or idle > 30 mins, log out
+        if (!appConfig.wasRunningCleanly || (now - appConfig.lastActiveTime > idleTimeout)) {
+            appConfig.logOut()
+        }
+        appConfig.markAppStarted()
+    }
+
+    private fun observeLifecycle() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                val appConfig = AppConfig(applicationContext)
+                val now = System.currentTimeMillis()
+                val idleTimeout = 30 * 60 * 1000L // 30 minutes
+
+                if (!appConfig.wasRunningCleanly || (now - appConfig.lastActiveTime > idleTimeout)) {
+                    appConfig.logOut()
+                }
+                appConfig.markAppStarted()
+            }
+
+            override fun onStop(owner: LifecycleOwner) {
+                val appConfig = AppConfig(applicationContext)
+                appConfig.markAppStopped()
+            }
+        })
     }
 
     /**
