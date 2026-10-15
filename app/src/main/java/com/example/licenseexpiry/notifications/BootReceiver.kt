@@ -37,7 +37,7 @@ class BootReceiver : BroadcastReceiver() {
                     AlarmScheduler.scheduleReminder(
                         appContext,
                         entry,
-                        vehicleNickname = vehicle?.nickname ?: "Your vehicle"
+                        vehicleNickname = vehicle?.brand ?: "Your vehicle"
                     )
                 }
             } finally {
