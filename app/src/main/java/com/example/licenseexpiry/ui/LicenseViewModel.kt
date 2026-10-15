@@ -7,6 +7,7 @@ import com.example.licenseexpiry.data.AppConfig
 import com.example.licenseexpiry.data.AppDatabase
 import com.example.licenseexpiry.data.AuthResult
 import com.example.licenseexpiry.data.LicenseEntry
+import com.example.licenseexpiry.data.FitnessEntry
 import com.example.licenseexpiry.data.LicenseRepository
 import com.example.licenseexpiry.data.SyncRepository
 import com.example.licenseexpiry.data.Vehicle
@@ -44,6 +45,9 @@ class LicenseViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allLicenses: StateFlow<List<LicenseEntry>> = repository.allLicenses()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allFitness: StateFlow<List<FitnessEntry>> = repository.allFitnessEntries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Auth ---
@@ -89,9 +93,16 @@ class LicenseViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Vehicles / licenses ---
 
-    fun addVehicle(nickname: String, plateNumber: String) {
+    fun addVehicle(brand: String, vehicleType: String, vehicleYear: String, plateNumber: String) {
         viewModelScope.launch {
-            val id = repository.addVehicle(Vehicle(nickname = nickname, plateNumber = plateNumber))
+            val id = repository.addVehicle(
+                Vehicle(
+                    brand = brand,
+                    vehicleType = vehicleType.ifBlank { "Car" },
+                    vehicleYear = vehicleYear.ifBlank { "2024" },
+                    plateNumber = plateNumber
+                )
+            )
             val vehicle = repository.getVehicleById(id) ?: return@launch
             syncRepository.syncVehicle(vehicle)
         }
@@ -121,6 +132,28 @@ class LicenseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun addFitness(
+        vehicleId: Long,
+        vehicleNickname: String,
+        expiryDateMillis: Long,
+        reminderDaysBefore: Int
+    ) {
+        viewModelScope.launch {
+            val entry = FitnessEntry(
+                vehicleId = vehicleId,
+                expiryDateMillis = expiryDateMillis,
+                reminderDaysBefore = reminderDaysBefore
+            )
+            val newId = repository.addFitness(entry)
+            val savedEntry = entry.copy(id = newId)
+
+            AlarmScheduler.scheduleReminder(getApplication(), savedEntry, vehicleNickname)
+            repository.updateFitness(savedEntry.copy(alarmScheduled = true))
+
+            syncRepository.syncFitness(savedEntry.copy(alarmScheduled = true))
+        }
+    }
+
     fun updateLicense(
         entry: LicenseEntry,
         vehicleNickname: String,
@@ -147,11 +180,43 @@ class LicenseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateFitness(
+        entry: FitnessEntry,
+        vehicleNickname: String,
+        expiryDateMillis: Long,
+        reminderDaysBefore: Int
+    ) {
+        viewModelScope.launch {
+            val updated = entry.copy(
+                expiryDateMillis = expiryDateMillis,
+                reminderDaysBefore = reminderDaysBefore,
+                emailNotified = false,
+                alarmScheduled = false
+            )
+            repository.updateFitness(updated)
+
+            AlarmScheduler.cancelReminder(getApplication(), entry.id)
+            AlarmScheduler.scheduleReminder(getApplication(), updated, vehicleNickname)
+            val scheduled = updated.copy(alarmScheduled = true)
+            repository.updateFitness(scheduled)
+
+            syncRepository.updateFitnessRemote(scheduled)
+        }
+    }
+
     fun deleteLicense(entry: LicenseEntry) {
         viewModelScope.launch {
             AlarmScheduler.cancelReminder(getApplication(), entry.id)
             syncRepository.deleteLicenseRemote(entry)
             repository.deleteLicense(entry)
+        }
+    }
+
+    fun deleteFitness(entry: FitnessEntry) {
+        viewModelScope.launch {
+            AlarmScheduler.cancelReminder(getApplication(), entry.id)
+            syncRepository.deleteFitnessRemote(entry)
+            repository.deleteFitness(entry)
         }
     }
 
