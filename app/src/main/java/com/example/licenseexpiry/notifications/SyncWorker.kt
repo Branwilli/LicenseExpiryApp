@@ -36,9 +36,20 @@ class SyncWorker(
                 AlarmScheduler.scheduleReminder(
                     applicationContext,
                     entry,
-                    vehicleNickname = vehicle?.nickname ?: "Your vehicle"
+                    vehicleNickname = vehicle?.brand ?: "Your vehicle"
                 )
                 repository.updateLicense(entry.copy(alarmScheduled = true))
+            }
+
+            val fitnessNeedingAlarm = repository.fitnessNeedingAlarm()
+            for (entry in fitnessNeedingAlarm) {
+                val vehicle = repository.getVehicleById(entry.vehicleId)
+                AlarmScheduler.scheduleReminder(
+                    applicationContext,
+                    entry,
+                    vehicleNickname = vehicle?.brand ?: "Your vehicle"
+                )
+                repository.updateFitness(entry.copy(alarmScheduled = true))
             }
 
             // 2. Push anything not yet synced to the backend, then pull down
