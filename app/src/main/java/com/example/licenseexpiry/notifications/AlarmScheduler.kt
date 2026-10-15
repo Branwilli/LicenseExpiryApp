@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.licenseexpiry.data.FitnessEntry
 import com.example.licenseexpiry.data.LicenseEntry
 import java.util.concurrent.TimeUnit
 
@@ -22,6 +23,7 @@ object AlarmScheduler {
 
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(AlarmReceiver.EXTRA_LICENSE_ID, entry.id)
+            putExtra(AlarmReceiver.EXTRA_FITNESS_ID, entry.id)
             putExtra(AlarmReceiver.EXTRA_VEHICLE_NAME, vehicleNickname)
             putExtra(AlarmReceiver.EXTRA_LICENSE_TYPE, entry.licenseType)
         }
@@ -37,6 +39,36 @@ object AlarmScheduler {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
             // Caller should prompt the user to grant "Alarms & reminders" permission
             // via Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM before calling this.
+            return
+        }
+
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            reminderTimeMillis,
+            pendingIntent
+        )
+    }
+
+    fun scheduleReminder(context: Context, entry: FitnessEntry, vehicleNickname: String) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        val reminderTimeMillis = entry.expiryDateMillis -
+            TimeUnit.DAYS.toMillis(entry.reminderDaysBefore.toLong())
+
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra(AlarmReceiver.EXTRA_FITNESS_ID, entry.id)
+            putExtra(AlarmReceiver.EXTRA_VEHICLE_NAME, vehicleNickname)
+            putExtra(AlarmReceiver.EXTRA_LICENSE_TYPE, "Fitness")
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            (entry.id + 100000).toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
             return
         }
 
