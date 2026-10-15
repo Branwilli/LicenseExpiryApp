@@ -7,8 +7,8 @@ import androidx.room.RoomDatabase
 
 // setup a room database while defining the schema of the database
 @Database(
-    entities = [Vehicle::class, LicenseEntry::class],
-    version = 2, // bumped: added remoteId to Vehicle and LicenseEntry
+    entities = [Vehicle::class, LicenseEntry::class, FitnessEntry::class],
+    version = 3, // bumped: added remoteId to Vehicle and LicenseEntry
     exportSchema = false
 )
 
@@ -16,6 +16,7 @@ import androidx.room.RoomDatabase
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun licenseDao(): LicenseDao // Exposes and generate LicenseDao implementation to run queries
+
 
     // Ensures only one AppDatabase exists in memory.
     companion object {
@@ -27,7 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "license_expiry_db"
+                    "vehicle_expiry"
                 )
                     // TODO: write a real Migration(1, 2) before shipping with
                     // existing users' data. Destructive is fine during
