@@ -13,17 +13,21 @@ data class AuthRequest(val email: String, val password: String)
 data class UserDto(val id: Long, val email: String)
 data class AuthResponse(val token: String, val user: UserDto)
 
-// --- Vehicles / licenses ---
+// --- Vehicles / licenses / fitness ---
 
 data class VehicleDto(
     val id: Long,
     val user_id: Long,
-    val nickname: String,
+    val brand: String,
+    val vehicle_type: String?,
+    val vehicle_year: String?,
     val plate_number: String,
     val owner_notes: String?
 )
 data class CreateVehicleRequest(
-    val nickname: String,
+    val brand: String,
+    val vehicleType: String,
+    val vehicleYear: String,
     val plateNumber: String,
     val ownerNotes: String? = null
 )
@@ -38,6 +42,18 @@ data class LicenseDto(
 )
 data class CreateLicenseRequest(
     val licenseType: String,
+    val expiryDate: String, // "YYYY-MM-DD"
+    val reminderDaysBefore: Int
+)
+
+data class FitnessDto(
+    val id: Long,
+    val vehicle_id: Long,
+    val expiry_date: String, // "YYYY-MM-DD"
+    val reminder_days_before: Int,
+    val email_notified: Boolean
+)
+data class CreateFitnessRequest(
     val expiryDate: String, // "YYYY-MM-DD"
     val reminderDaysBefore: Int
 )
@@ -86,4 +102,22 @@ interface ApiService {
 
     @DELETE("licenses/{id}")
     suspend fun deleteLicense(@Path("id") licenseId: Long)
+
+    @GET("vehicles/{vehicleId}/fitnesses")
+    suspend fun listFitnesses(@Path("vehicleId") vehicleId: Long): List<FitnessDto>
+
+    @POST("vehicles/{vehicleId}/fitnesses")
+    suspend fun createFitness(
+        @Path("vehicleId") vehicleId: Long,
+        @Body request: CreateFitnessRequest
+    ): FitnessDto
+
+    @PUT("fitnesses/{id}")
+    suspend fun updateFitness(
+        @Path("id") fitnessId: Long,
+        @Body request: CreateFitnessRequest
+    ): FitnessDto
+
+    @DELETE("fitnesses/{id}")
+    suspend fun deleteFitness(@Path("id") fitnessId: Long)
 }
