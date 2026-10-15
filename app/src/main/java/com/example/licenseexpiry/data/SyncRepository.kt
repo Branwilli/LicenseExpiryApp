@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.licenseexpiry.network.ApiService
 import com.example.licenseexpiry.network.AuthRequest
 import com.example.licenseexpiry.network.CreateLicenseRequest
+import com.example.licenseexpiry.network.CreateFitnessRequest
 import com.example.licenseexpiry.network.CreateVehicleRequest
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -62,7 +63,9 @@ class SyncRepository(
         return try {
             val dto = api.createVehicle(
                 CreateVehicleRequest(
-                    nickname = vehicle.nickname,
+                    brand = vehicle.brand,
+                    vehicleType = vehicle.vehicleType,
+                    vehicleYear = vehicle.vehicleYear,
                     plateNumber = vehicle.plateNumber,
                     ownerNotes = vehicle.ownerNotes
                 )
@@ -131,6 +134,57 @@ class SyncRepository(
         }
     }
 
+    suspend fun syncFitness(entry: FitnessEntry) {
+        if (!appConfig.isLoggedIn) return
+        val remoteId = entry.remoteId
+        
+        val vehicle = licenseRepository.getVehicleById(entry.vehicleId) ?: return
+        val vehicleRemoteId = syncVehicle(vehicle) ?: return
+
+        try {
+            val dto = api.createFitness(
+                vehicleRemoteId,
+                CreateFitnessRequest(
+                    expiryDate = dateFormat.format(Date(entry.expiryDateMillis)),
+                    reminderDaysBefore = entry.reminderDaysBefore
+                )
+            )
+            licenseRepository.updateFitness(entry.copy(remoteId = dto.id))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sync fitness ${entry.id}", e)
+        }
+    }
+
+    suspend fun updateFitnessRemote(entry: FitnessEntry) {
+        if (!appConfig.isLoggedIn) return
+        val remoteId = entry.remoteId
+        if (remoteId == null) {
+            syncFitness(entry)
+            return
+        }
+        try {
+            api.updateFitness(
+                remoteId,
+                CreateFitnessRequest(
+                    expiryDate = dateFormat.format(Date(entry.expiryDateMillis)),
+                    reminderDaysBefore = entry.reminderDaysBefore
+                )
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to update remote fitness $remoteId", e)
+        }
+    }
+
+    suspend fun deleteFitnessRemote(entry: FitnessEntry) {
+        val remoteId = entry.remoteId ?: return
+        if (!appConfig.isLoggedIn) return
+        try {
+            api.deleteFitness(remoteId)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to delete remote fitness $remoteId", e)
+        }
+    }
+
     /** Deletes the remote counterpart of a vehicle, if it was ever synced. Call before deleting locally. */
     suspend fun deleteVehicleRemote(vehicle: Vehicle) {
         val remoteId = vehicle.remoteId ?: return
@@ -147,6 +201,7 @@ class SyncRepository(
         if (!appConfig.isLoggedIn) return
         licenseRepository.unsyncedVehicles().forEach { syncVehicle(it) }
         licenseRepository.unsyncedLicenses().forEach { syncLicense(it) }
+        licenseRepository.unsyncedFitnessEntries().forEach { syncFitness(it) }
     }
 
     /**
@@ -156,7 +211,7 @@ class SyncRepository(
      * empty list — syncAllPending() only ever pushed local -> remote before.
      *
      * Returns the licenses that were newly inserted (didn't exist locally
-     * yet), paired with their vehicle's nickname, so the caller can schedule
+     * yet), paired with their vehicle's brand, so the caller can schedule
      * their local alarms — that needs an Android Context, which this
      * repository deliberately doesn't hold.
      */
@@ -171,27 +226,31 @@ class SyncRepository(
             for (remoteVehicle in remoteVehicles) {
                 val existingVehicle = licenseRepository.getVehicleByRemoteId(remoteVehicle.id)
                 val localVehicleId: Long
-                val vehicleNickname: String
+                val vehiclebrand: String
 
                 if (existingVehicle != null) {
                     val merged = existingVehicle.copy(
-                        nickname = remoteVehicle.nickname,
+                        brand = remoteVehicle.brand,
+                        vehicleType = remoteVehicle.vehicle_type ?: "Car",
+                        vehicleYear = remoteVehicle.vehicle_year ?: "2024",
                         plateNumber = remoteVehicle.plate_number,
                         ownerNotes = remoteVehicle.owner_notes
                     )
                     licenseRepository.updateVehicle(merged)
                     localVehicleId = merged.id
-                    vehicleNickname = merged.nickname
+                    vehiclebrand = merged.brand
                 } else {
                     localVehicleId = licenseRepository.addVehicle(
                         Vehicle(
-                            nickname = remoteVehicle.nickname,
+                            brand = remoteVehicle.brand,
+                            vehicleType = remoteVehicle.vehicle_type ?: "Car",
+                            vehicleYear = remoteVehicle.vehicle_year ?: "2024",
                             plateNumber = remoteVehicle.plate_number,
                             ownerNotes = remoteVehicle.owner_notes,
                             remoteId = remoteVehicle.id
                         )
                     )
-                    vehicleNickname = remoteVehicle.nickname
+                    vehiclebrand = remoteVehicle.brand
                 }
 
                 val remoteLicenses = try {
@@ -228,7 +287,42 @@ class SyncRepository(
                             remoteId = remoteLicense.id
                         )
                         val newLocalId = licenseRepository.addLicense(newEntry)
-                        newlyAddedLicenses.add(newEntry.copy(id = newLocalId) to vehicleNickname)
+                        newlyAddedLicenses.add(newEntry.copy(id = newLocalId) to vehiclebrand)
+                    }
+                }
+
+                val remoteFitnesses = try {
+                    api.listFitnesses(remoteVehicle.id)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to fetch fitnesses for vehicle ${remoteVehicle.id}", e)
+                    emptyList()
+                }
+
+                for (remoteFitness in remoteFitnesses) {
+                    val expiryMillis = try {
+                        dateFormat.parse(remoteFitness.expiry_date)?.time
+                    } catch (e: Exception) {
+                        null
+                    } ?: continue
+
+                    val existingFitness = licenseRepository.getFitnessByRemoteId(remoteFitness.id)
+                    if (existingFitness != null) {
+                        licenseRepository.updateFitness(
+                            existingFitness.copy(
+                                expiryDateMillis = expiryMillis,
+                                reminderDaysBefore = remoteFitness.reminder_days_before,
+                                emailNotified = remoteFitness.email_notified
+                            )
+                        )
+                    } else {
+                        val newEntry = FitnessEntry(
+                            vehicleId = localVehicleId,
+                            expiryDateMillis = expiryMillis,
+                            reminderDaysBefore = remoteFitness.reminder_days_before,
+                            emailNotified = remoteFitness.email_notified,
+                            remoteId = remoteFitness.id
+                        )
+                        licenseRepository.addFitness(newEntry)
                     }
                 }
             }
