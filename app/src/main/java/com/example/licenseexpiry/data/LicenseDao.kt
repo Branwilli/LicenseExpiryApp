@@ -17,7 +17,7 @@ interface LicenseDao {
     @Delete
     suspend fun deleteVehicle(vehicle: Vehicle)
 
-    @Query("SELECT * FROM vehicles ORDER BY nickname ASC")
+    @Query("SELECT * FROM vehicles ORDER BY brand ASC")
     fun getAllVehicles(): Flow<List<Vehicle>>
 
     // --- License entries ---
@@ -53,6 +53,38 @@ interface LicenseDao {
     @Query("SELECT * FROM license_entries WHERE alarmScheduled = 0")
     suspend fun getLicensesNeedingAlarm(): List<LicenseEntry>
 
+    // --- Fitness Entry ---
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFitness(entry: FitnessEntry): Long
+
+    @Update
+    suspend fun updateFitness(entry: FitnessEntry)
+
+    @Delete
+    suspend fun deleteFitness(entry: FitnessEntry)
+
+    @Query("SELECT * FROM fitness_entries WHERE vehicleId = :vehicleId ORDER BY expiryDateMillis ASC")
+    fun getFitnessForVehicle(vehicleId: Long): Flow<List<FitnessEntry>>
+
+    @Query("SELECT * FROM fitness_entries ORDER BY expiryDateMillis ASC")
+    fun getAllFitness(): Flow<List<FitnessEntry>>
+
+    @Query("SELECT * FROM fitness_entries ORDER BY expiryDateMillis ASC")
+    suspend fun getAllFitnessOnce(): List<FitnessEntry>
+
+    @Query(
+        """
+        SELECT * FROM fitness_entries
+        WHERE emailNotified = 0
+        AND expiryDateMillis <= :windowEndMillis
+        """
+    )
+    suspend fun getFitnessDueForReminder(windowEndMillis: Long): List<FitnessEntry>
+
+    @Query("SELECT * FROM fitness_entries WHERE alarmScheduled = 0")
+    suspend fun getFitnessNeedingAlarm(): List<FitnessEntry>
+
     // --- Sync support ---
 
     @Query("SELECT * FROM vehicles WHERE id = :vehicleId")
@@ -64,9 +96,15 @@ interface LicenseDao {
     @Query("SELECT * FROM license_entries WHERE remoteId IS NULL")
     suspend fun getUnsyncedLicenses(): List<LicenseEntry>
 
+    @Query("SELECT * FROM fitness_entries WHERE remoteId IS NULL")
+    suspend fun getUnsyncedFitnessEntries(): List<FitnessEntry>
+
     @Query("SELECT * FROM vehicles WHERE remoteId = :remoteId LIMIT 1")
     suspend fun getVehicleByRemoteId(remoteId: Long): Vehicle?
 
     @Query("SELECT * FROM license_entries WHERE remoteId = :remoteId LIMIT 1")
     suspend fun getLicenseByRemoteId(remoteId: Long): LicenseEntry?
+
+    @Query("SELECT * FROM fitness_entries WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getFitnessByRemoteId(remoteId: Long): FitnessEntry?    
 }
