@@ -2,6 +2,7 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const pool = require('../db/pool');
 const { userOwnsLicense } = require('./licenses');
+const { userOwnsFitness } = require('./fitness');
 
 const router = express.Router();
 
@@ -39,13 +40,13 @@ router.post('/licenses/:id/notify', async (req, res) => {
     const license = result.rows[0];
     const expiryDate = new Date(license.expiry_date).toISOString().split('T')[0];
 
-    const subject = `${license.license_type} expiring soon for ${license.vehicle_nickname}`;
+    const subject = `${license.license_type} expiring soon for ${license.brand}`;
     const text =
-      `Heads up — the ${license.license_type} for ${license.vehicle_nickname} expires on ${expiryDate}.\n\n` +
+      `Heads up — the ${license.license_type} for ${license.brand} expires on ${expiryDate}.\n\n` +
       `Please renew it before that date to avoid any penalties.`;
     const html = `
       <p>Heads up — the <strong>${license.license_type}</strong> for
-      <strong>${license.vehicle_nickname}</strong> expires on <strong>${expiryDate}</strong>.</p>
+      <strong>${license.brand}</strong> expires on <strong>${expiryDate}</strong>.</p>
       <p>Please renew it before that date to avoid any penalties.</p>
     `;
 
@@ -59,6 +60,59 @@ router.post('/licenses/:id/notify', async (req, res) => {
 
     await pool.query('UPDATE license_entries SET email_notified = true WHERE id = $1', [
       license.id,
+    ]);
+
+    res.status(200).json({ status: 'sent' });
+  } catch (err) {
+    console.error('Failed to send expiry email:', err);
+    res.status(502).json({ error: 'Failed to send email' });
+  }
+});
+
+router.post('/fitness/:id/notify', async (req, res) => {
+  if (!(await userOwnsFitness(req.params.id, req.userId))) {
+    return res.status(404).json({ error: 'Fitness entry not found' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT fe.id, fe.expiry_date, fe.email_notified,
+              v.nickname AS vehicle_nickname,
+              u.email AS to_email
+       FROM fitness_entries fe
+       JOIN vehicles v ON v.id = fe.vehicle_id
+       JOIN users u ON u.id = v.user_id
+       WHERE fe.id = $1`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Fitness entry not found' });
+    }
+
+    const fitness = result.rows[0];
+    const expiryDate = new Date(fitness.expiry_date).toISOString().split('T')[0];
+
+    const subject = `Fitness certificate expiring soon for ${fitness.brand}`;
+    const text =
+      `Heads up — the fitness certificate for ${fitness.brand} expires on ${expiryDate}.\n\n` +
+      `Please renew it before that date to avoid any penalties.`;
+    const html = `
+      <p>Heads up — the fitness certificate for
+      <strong>${fitness.brand}</strong> expires on <strong>${expiryDate}</strong>.</p>
+      <p>Please renew it before that date to avoid any penalties.</p>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.FROM_EMAIL || process.env.SMTP_USER,
+      to: fitness.to_email,
+      subject,
+      text,
+      html,
+    });
+
+    await pool.query('UPDATE fitness_entries SET email_notified = true WHERE id = $1', [
+      fitness.id,
     ]);
 
     res.status(200).json({ status: 'sent' });
@@ -96,8 +150,8 @@ async function sendDueReminders(withinDays = 30) {
       await transporter.sendMail({
         from: process.env.FROM_EMAIL || process.env.SMTP_USER,
         to: license.to_email,
-        subject: `${license.license_type} expiring soon for ${license.vehicle_nickname}`,
-        text: `Heads up — the ${license.license_type} for ${license.vehicle_nickname} expires on ${expiryDate}.`,
+        subject: `${license.license_type} expiring soon for ${license.brand}`,
+        text: `Heads up — the ${license.license_type} for ${license.brand} expires on ${expiryDate}.`,
       });
       await pool.query('UPDATE license_entries SET email_notified = true WHERE id = $1', [
         license.id,
