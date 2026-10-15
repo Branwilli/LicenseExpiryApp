@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/vehicles', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM vehicles WHERE user_id = $1 ORDER BY nickname ASC',
+      'SELECT * FROM vehicles WHERE user_id = $1 ORDER BY brand ASC',
       [req.userId]
     );
     res.json(result.rows);
@@ -19,16 +19,16 @@ router.get('/vehicles', async (req, res) => {
 
 // Add a vehicle for a user.
 router.post('/vehicles', async (req, res) => {
-  const { nickname, plateNumber, ownerNotes } = req.body || {};
-  if (!nickname || !plateNumber) {
-    return res.status(400).json({ error: 'nickname and plateNumber are required' });
+  const { brand, plateNumber, ownerNotes } = req.body || {};
+  if (!brand || !plateNumber) {
+    return res.status(400).json({ error: 'brand and plateNumber are required' });
   }
 
   try {
     const result = await pool.query(
-      `INSERT INTO vehicles (user_id, nickname, plate_number, owner_notes)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.userId, nickname, plateNumber, ownerNotes || null]
+      `INSERT INTO vehicles (user_id, brand, vehicle_type, vehicle_year, plate_number, owner_notes)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.userId, brand, req.body.vehicleType || null, req.body.vehicleYear || null, plateNumber, ownerNotes || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
