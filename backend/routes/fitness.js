@@ -8,6 +8,16 @@ async function userOwnsVehicle(vehicleId, userId) {
   return result.rows.length > 0;
 }
 
+async function userOwnsFitness(fitnessId, userId) {
+  const result = await pool.query(
+    `SELECT fe.id FROM fitness_entries fe
+     JOIN vehicles v ON v.id = fe.vehicle_id
+     WHERE fe.id = $1 AND v.user_id = $2`,
+    [fitnessId, userId]
+  );
+  return result.rows.length > 0;
+}
+
 router.get('/vehicles/:vehicleId/fitness', async (req, res) => {
   if (!(await userOwnsVehicle(req.params.vehicleId, req.userId))) {
     return res.status(404).json({ error: 'Vehicle not found' });
@@ -49,7 +59,13 @@ router.post('/vehicles/:vehicleId/fitness', async (req, res) => {
 });
 
 router.put('/fitness/:id', async(req, res) => {
+
+    if (!(await userOwnsFitness(req.params.id, req.userId))) {
+        return res.status(404).json({ error: 'Fitness entry not found' });
+    }
+
     const { expiryDate, reminderDaysBefore } = req.body || {};
+    
     if (!expiryDate) {
         return res.status(400).json({ error: 'expiryDate is required' });
     }
